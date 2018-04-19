@@ -1,0 +1,32 @@
+{
+  "name": "zhihu",
+  "version": "1.0.0",
+  "description": "用于增长实验的知乎爬虫",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./src/scrape.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BetaSu/zhihu.git"
+  },
+  "keywords": [
+    "知乎",
+    "爬虫"
+  ],
+  "author": "betaSu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/BetaSu/zhihu/issues"
+  },
+  "homepage": "https://github.com/BetaSu/zhihu#readme",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.4",
+    "babel-preset-env": "^1.6.1",
+    "webpack": "^4.6.0"
+  },
+  "dependencies": {
+    "puppeteer": "^1.3.0"
+  }
+}
