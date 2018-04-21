@@ -1,3 +1,8 @@
+const path = require('path')
+const fs = require('fs')
+let resourcePath = path.join(__dirname, '../source')
+let TOTAL_GET = 1;
+
 module.exports = {
     async disableImg (page) {
         await page.setRequestInterception(true);

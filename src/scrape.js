@@ -1,20 +1,17 @@
 let path = require('path')
 let fs = require('fs')
-let process = require('process')
 let puppeteer = require('puppeteer')
 let loginInfo = require('./config')
 let resourcePath = path.join(__dirname, '../source')
 let config = require('../config')
 const utils = require('./utils')
+let model = require('../db/model')
 
 let PAGE_COUNT = 1
 let RETRY_COUNT = 1
-let TOTAL_GET = 1
 // let RUNNING_TIME = Date.now()
 
-process.on('beforeExit', function () {
-    console.log('bbb');
-})
+let curBrowser
 
 run()
 
@@ -26,10 +23,14 @@ async function run() {
 }
 
 async function init() {
+    if (curBrowser && curBrowser.close) {
+        await curBrowser.close()
+    }
     const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox']
     })
+    curBrowser = browser
     const page = await browser.newPage()
     await page.setCookie(loginInfo)
     await utils.disableImg(page)
@@ -39,6 +40,7 @@ async function init() {
     browser.on('targetcreated',async target => {
         let page = await target.page()
         if (page) {
+            mainPage = page
             await utils.disableImg(page)
             await page.waitFor(config.INTERVAL)
             let title = await page.$eval('.QuestionHeader-title', dom => dom.innerText)
@@ -73,6 +75,7 @@ async function init() {
         }, 100)
     })
     if (config.screenshot) {
+        console.log('创建截屏');
         await page.screenshot({path: path.join(resourcePath, 'after_login.png')})
     }
     console.log('初始化成功');
