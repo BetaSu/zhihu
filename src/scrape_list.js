@@ -8,6 +8,7 @@ const utils = require('./utils')
 
 let PAGE_COUNT = 1
 let RETRY_COUNT = 1
+let TOTAL_GET = 1;
 // let RUNNING_TIME = Date.now()
 
 let curBrowser
@@ -57,7 +58,8 @@ async function init() {
                 id,
                 answerCount: Number(answerCount),
                 follow: Number(follow),
-                view: Number(view)
+                view: Number(view),
+                index: TOTAL_GET++
             })
             await page.close()
         }
@@ -77,10 +79,15 @@ async function init() {
 }
 
 async function loop(mainPage) {
-    await loopFn(mainPage).catch(async e => {
-        console.log(`loop发生promise错误，尝试第${RETRY_COUNT++}次重连`);
-        await loop(mainPage)
-    })
+    if (TOTAL_GET > 500) {
+        await curBrowser.close()
+        await init()
+    } else {
+        await loopFn(mainPage).catch(async e => {
+            console.log(`loop发生promise错误，尝试第${RETRY_COUNT++}次重连`);
+            await loop(mainPage)
+        })
+    }
 }
 
 async function loopFn(mainPage) {

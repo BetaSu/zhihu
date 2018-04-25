@@ -15,7 +15,7 @@ const Schema = mongoose.Schema
     follow: Number,
     // 浏览量
     view: Number
-})
+}, {timestamps: true})
 let QuestionModel = mongoose.model('QuestionModel', questionSchema)
 
 
