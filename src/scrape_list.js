@@ -5,7 +5,6 @@ let loginInfo = require('./config')
 let resourcePath = path.join(__dirname, '../source')
 let config = require('../config')
 const utils = require('./utils')
-let model = require('../db/model')
 
 let PAGE_COUNT = 1
 let RETRY_COUNT = 1
@@ -13,28 +12,26 @@ let RETRY_COUNT = 1
 
 let curBrowser
 
-run()
-
-async function run() {
-    await init().catch(async e => {
-        console.log(`发生promise错误，尝试第${RETRY_COUNT++}次重连`);
-        await run()
-    })
-}
+// async function run() {
+//     await init().catch(async e => {
+//         console.log(`发生promise错误，尝试第${RETRY_COUNT++}次重连`);
+//         await run()
+//     })
+// }
 
 async function init() {
     if (curBrowser && curBrowser.close) {
         await curBrowser.close()
     }
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox']
+        headless: config.headless,
+        // args: ['--no-sandbox']
     })
     curBrowser = browser
     const page = await browser.newPage()
     await page.setCookie(loginInfo)
     await utils.disableImg(page)
-    await page.goto('https://www.zhihu.com')
+    await page.goto('https://www.zhihu.com/topic#%E7%94%9F%E6%B4%BB')
     await page.waitFor(config.INTERVAL)
 
     browser.on('targetcreated',async target => {
@@ -48,26 +45,23 @@ async function init() {
             if (title.length === rest + 2) {
                 title = title.slice(0, rest)
             }
-            let answerCount = await page.$eval('[data-za-detail-view-element_name="ViewAll"]', dom => dom.innerText.split(' ')[1].replace(',', ''))
+            let answerCount = await page.$eval('.List-headerText span', dom => dom.innerText.split(' ')[0])
+            answerCount = answerCount.split(',').join('')
             let board = await page.evaluate(() => Array.from(document.body.querySelectorAll('.QuestionFollowStatus-counts .NumberBoard-itemValue'), ({ title }) => title))
-            let focus = board[0]
+            let follow = board[0]
             let view = board[1]
+            let id = Number(page.url().split('/').pop())
             await utils.output({
+                type: 'question',
                 title,
-                answerCount,
-                focus,
-                view
+                id,
+                answerCount: Number(answerCount),
+                follow: Number(follow),
+                view: Number(view)
             })
             await page.close()
         }
     })
-
-    // page.on("pageerror",async err => {  
-    //     console.log("Page error: " + err.toString())
-    //     await browser.close()
-    //     console.log(`尝试第${RETRY_COUNT++}次重连`);
-    //     await run()
-    // })
 
     await page.evaluate(() => {
         setInterval(() => {
@@ -83,8 +77,18 @@ async function init() {
 }
 
 async function loop(mainPage) {
+    await loopFn(mainPage).catch(async e => {
+        console.log(`loop发生promise错误，尝试第${RETRY_COUNT++}次重连`);
+        await loop(mainPage)
+    })
+}
+
+async function loopFn(mainPage) {
+    await mainPage.waitFor(config.INTERVAL)
     let handleList = await getUrlHandle(mainPage)
-    await getDetailByHandle(mainPage, handleList)
+    if (handleList.length) {
+        await getDetailByHandle(mainPage, handleList)
+    }
     await loop(mainPage)
 }
 
@@ -95,7 +99,7 @@ async function loop(mainPage) {
 
 // 获取列表页所有问题的handle
 async function getUrlHandle(page) {
-    return await page.$$('[data-za-detail-view-element_name="Title"]')
+    return await page.$$('[data-za-element-name="Title"]')
 }
 
 async function getDetailByHandle(mainPage, handleList) {
@@ -106,14 +110,14 @@ async function getDetailByHandle(mainPage, handleList) {
         let url = await property.jsonValue()
         // 过滤掉不是详情页的 比如 专栏页
         if (typeof url === 'string') {
-            if (!url.split('/').includes('answer')) continue
+            if (!url.split('/').includes('question')) continue
         }
         await handle.click({
             delay: 10
         })
         await mainPage.evaluate(async (url) => {
-            Array.from(document.querySelectorAll('.TopstoryItem')).forEach(function (card) {
-                let a = card.querySelector('[data-za-detail-view-element_name="Title"]')
+            Array.from(document.querySelectorAll('.feed-item')).forEach(function (card) {
+                let a = card.querySelector('[data-za-element-name="Title"]')
                 if (a && a.href === url) {
                     card.parentNode.removeChild(card)
                 }
@@ -121,3 +125,5 @@ async function getDetailByHandle(mainPage, handleList) {
         }, url)
     }
 }
+
+module.exports = init

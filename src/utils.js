@@ -1,6 +1,8 @@
 const path = require('path')
 const fs = require('fs')
 let resourcePath = path.join(__dirname, '../source')
+let models = require('../db/model')
+
 let TOTAL_GET = 1;
 
 module.exports = {
@@ -16,11 +18,9 @@ module.exports = {
     },
     async output (data) {
         console.log(`获取第${TOTAL_GET++}条：`, data.title);
-        let sourcePath = path.join(resourcePath, './data.json')
-        await fs.readFile(sourcePath, (err, arr = '[]') => {
-            let a = JSON.parse(arr.toString())
-            a.push(data)
-            return fs.writeFileSync(sourcePath, JSON.stringify(a))
+        data.index = TOTAL_GET
+        new models.QuestionModel(data).save((err, data) => {
+            if (err) return console.log('入库错误：', err);
         })
     }
 }

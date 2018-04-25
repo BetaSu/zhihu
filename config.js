@@ -7,7 +7,8 @@ module.exports = {
     cookie: '',
     // 当为true时，初始化成功后会拍一张屏幕快照放入source目录，可以看是否登录成功
     screenshot: false,
+    headless: true,
     dbServername: '127.0.0.1',
     dbPort: 27017,
-    dbname: '数据库名称'
+    dbname: 'zhihu'
 }
