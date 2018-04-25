@@ -80,7 +80,9 @@ async function init() {
 
 async function loop(mainPage) {
     if (TOTAL_GET > 500) {
+        console.log('抓取大于500条数据，重新循环');
         await curBrowser.close()
+        TOTAL_GET = 1
         await init()
     } else {
         await loopFn(mainPage).catch(async e => {
