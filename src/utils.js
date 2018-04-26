@@ -8,9 +8,9 @@ module.exports = {
         await page.setRequestInterception(true);
         page.on('request', interceptedRequest => {
             if (interceptedRequest.url().endsWith('.png') || interceptedRequest.url().endsWith('.jpg')) {
-                interceptedRequest.abort()
+                interceptedRequest.abort().catch(e => {})
             } else {
-                interceptedRequest.continue()
+                interceptedRequest.continue().catch(e => {})
             }
         })
     },

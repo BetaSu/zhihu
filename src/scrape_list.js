@@ -8,62 +8,61 @@ const utils = require('./utils')
 
 let PAGE_COUNT = 1
 let RETRY_COUNT = 1
-let TOTAL_GET = 1;
-// let RUNNING_TIME = Date.now()
+let TOTAL_GET = 1
+// 最大重连数
+let RETRY_TIME = 50
+// 当前循环
+let CUR_CYCLE = 0
+let BROWSER_INIT = false
 
 let curBrowser
 
-// async function run() {
-//     await init().catch(async e => {
-//         console.log(`发生promise错误，尝试第${RETRY_COUNT++}次重连`);
-//         await run()
-//     })
-// }
-
 async function init() {
-    if (curBrowser && curBrowser.close) {
-        await curBrowser.close()
+    CUR_CYCLE++
+    TOTAL_GET = 1
+    if (!curBrowser) {
+        curBrowser = await puppeteer.launch({
+            headless: config.headless,
+            // args: ['--no-sandbox']
+        }) 
     }
-    const browser = await puppeteer.launch({
-        headless: config.headless,
-        // args: ['--no-sandbox']
-    })
-    curBrowser = browser
-    const page = await browser.newPage()
+    const page = await curBrowser.newPage()
     await page.setCookie(loginInfo)
     await utils.disableImg(page)
     await page.goto('https://www.zhihu.com/topic#%E7%94%9F%E6%B4%BB')
     await page.waitFor(config.INTERVAL)
 
-    browser.on('targetcreated',async target => {
-        let page = await target.page()
-        if (page) {
-            mainPage = page
-            await utils.disableImg(page)
-            await page.waitFor(config.INTERVAL)
-            let title = await page.$eval('.QuestionHeader-title', dom => dom.innerText)
-            let rest = title.indexOf('修改')
-            if (title.length === rest + 2) {
-                title = title.slice(0, rest)
+    if (!BROWSER_INIT) {
+        BROWSER_INIT = true
+        curBrowser.on('targetcreated',async target => {
+            let page = await target.page()
+            if (page) {
+                await utils.disableImg(page)
+                await page.waitFor(config.INTERVAL)
+                let title = await page.$eval('.QuestionHeader-title', dom => dom.innerText)
+                let rest = title.indexOf('修改')
+                if (title.length === rest + 2) {
+                    title = title.slice(0, rest)
+                }
+                let answerCount = await page.$eval('.List-headerText span', dom => dom.innerText.split(' ')[0])
+                answerCount = answerCount.split(',').join('')
+                let board = await page.evaluate(() => Array.from(document.body.querySelectorAll('.QuestionFollowStatus-counts .NumberBoard-itemValue'), ({ title }) => title))
+                let follow = board[0]
+                let view = board[1]
+                let id = Number(page.url().split('/').pop())
+                await utils.output({
+                    type: 'question',
+                    title,
+                    id,
+                    answerCount: Number(answerCount),
+                    follow: Number(follow),
+                    view: Number(view),
+                    index: TOTAL_GET++
+                })
+                await page.close()
             }
-            let answerCount = await page.$eval('.List-headerText span', dom => dom.innerText.split(' ')[0])
-            answerCount = answerCount.split(',').join('')
-            let board = await page.evaluate(() => Array.from(document.body.querySelectorAll('.QuestionFollowStatus-counts .NumberBoard-itemValue'), ({ title }) => title))
-            let follow = board[0]
-            let view = board[1]
-            let id = Number(page.url().split('/').pop())
-            await utils.output({
-                type: 'question',
-                title,
-                id,
-                answerCount: Number(answerCount),
-                follow: Number(follow),
-                view: Number(view),
-                index: TOTAL_GET++
-            })
-            await page.close()
-        }
-    })
+        }) 
+    }
 
     await page.evaluate(() => {
         setInterval(() => {
@@ -75,30 +74,38 @@ async function init() {
         await page.screenshot({path: path.join(resourcePath, 'after_login.png')})
     }
     console.log('初始化成功');
-    await loop(page)
+    await loop(page, CUR_CYCLE)
 }
 
-async function loop(mainPage) {
+async function loop(mainPage, cycle) {
     if (TOTAL_GET > 500) {
         console.log('抓取大于500条数据，重新循环');
-        await curBrowser.close()
-        TOTAL_GET = 1
-        await init()
+        mainPage.waitFor(config.INTERVAL)
+        await mainPage.close()
+        await init()  
     } else {
-        await loopFn(mainPage).catch(async e => {
+        await loopFn(mainPage, cycle).catch(async e => {
             console.log(`loop发生promise错误，尝试第${RETRY_COUNT++}次重连`);
-            await loop(mainPage)
+            if (RETRY_COUNT > RETRY_TIME) {
+                console.log('超过最大重连数' + RETRY_TIME, '，中断链接');
+            } else {
+                if (cycle !== CUR_CYCLE) {
+                    console.log('取消前一次循环的剩余任务');
+                    return
+                }
+                await loop(mainPage, cycle)
+            }
         })
     }
 }
 
-async function loopFn(mainPage) {
+async function loopFn(mainPage, cycle) {
     await mainPage.waitFor(config.INTERVAL)
     let handleList = await getUrlHandle(mainPage)
     if (handleList.length) {
         await getDetailByHandle(mainPage, handleList)
     }
-    await loop(mainPage)
+    await loop(mainPage, cycle)
 }
 
 // 获取列表页所有问题的url
