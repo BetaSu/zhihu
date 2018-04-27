@@ -15,12 +15,17 @@ module.exports = {
         })
     },
     async output (data, options) {
-        console.log(`开始:${options.start},当前:${options.cur},第${data.index}条：`, data.title);
+        console.log(`开始:${this.formatDate(options.start)},当前:${this.formatDate(options.cur)},第${data.index}条：`, data.title);
         new models.QuestionModel(data).save((err, data) => {
             if (err) return console.log('入库错误：', err);
         })
     },
+    formatDate (d) {
+        let date = new Date(d)
+        return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()} ${date.getHours()}:${date.getMinutes()}`
+    },
     restart () {
+        console.log('pm2 重启进程');
         fs.writeFileSync('./restart.txt', new Date())
     }
 }

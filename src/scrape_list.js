@@ -23,7 +23,7 @@ let curBrowser
 let restartTimer = null
 
 function makeTimer() {
-    return setTimeout(() => {
+    restartTimer = setTimeout(() => {
         utils.restart()
     }, TIMEOUT)
 }
@@ -31,7 +31,7 @@ function makeTimer() {
 function refresh() {
     if (restartTimer) {
         clearTimeout(restartTimer)
-        restartTimer = makeTimer()
+        makeTimer()
     }
 }
 
@@ -97,7 +97,7 @@ async function init() {
         await page.screenshot({path: path.join(resourcePath, 'after_login.png')})
     }
     console.log('初始化成功');
-    restartTimer =  makeTimer()
+    makeTimer()
     await loop(page, CUR_CYCLE)
 }
 
