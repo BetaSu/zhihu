@@ -14,6 +14,7 @@ let RETRY_TIME = 50
 // 当前循环
 let CUR_CYCLE = 0
 let BROWSER_INIT = false
+let START_TIME = 0
 
 let curBrowser
 
@@ -21,6 +22,7 @@ async function init() {
     CUR_CYCLE++
     TOTAL_GET = 1
     if (!curBrowser) {
+        START_TIME = new Date()
         curBrowser = await puppeteer.launch({
             headless: config.headless,
             // args: ['--no-sandbox']
@@ -58,6 +60,9 @@ async function init() {
                     follow: Number(follow),
                     view: Number(view),
                     index: TOTAL_GET++
+                }, {
+                    start: START_TIME,
+                    cur: new Date()
                 })
                 await page.close()
             }
@@ -79,15 +84,18 @@ async function init() {
 
 async function loop(mainPage, cycle) {
     if (TOTAL_GET > 500) {
-        console.log('抓取大于500条数据，重新循环');
+        console.log('抓取大于500条数据，重启应用');
         mainPage.waitFor(config.INTERVAL)
         await mainPage.close()
-        await init()  
+        // 修改为重启 
+        utils.restart()
+        // await init()  
     } else {
         await loopFn(mainPage, cycle).catch(async e => {
             console.log(`loop发生promise错误，尝试第${RETRY_COUNT++}次重连`);
             if (RETRY_COUNT > RETRY_TIME) {
-                console.log('超过最大重连数' + RETRY_TIME, '，中断链接');
+                console.log('超过最大重连数' + RETRY_TIME, '，重启应用');
+                utils.restart()
             } else {
                 if (cycle !== CUR_CYCLE) {
                     console.log('取消前一次循环的剩余任务');

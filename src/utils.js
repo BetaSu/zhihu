@@ -14,10 +14,13 @@ module.exports = {
             }
         })
     },
-    async output (data) {
-        console.log(`获取第${data.index}条：`, data.title);
+    async output (data, options) {
+        console.log(`开始:${options.start},当前:${options.cur},第${data.index}条：`, data.title);
         new models.QuestionModel(data).save((err, data) => {
             if (err) return console.log('入库错误：', err);
         })
+    },
+    restart () {
+        fs.writeFileSync('./restart.txt', new Date())
     }
 }
