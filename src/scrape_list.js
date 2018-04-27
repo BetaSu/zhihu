@@ -15,8 +15,25 @@ let RETRY_TIME = 50
 let CUR_CYCLE = 0
 let BROWSER_INIT = false
 let START_TIME = 0
+// 超时重连时间
+let TIMEOUT = 1000 * 60
 
 let curBrowser
+
+let restartTimer = null
+
+function makeTimer() {
+    return setTimeout(() => {
+        utils.restart()
+    }, TIMEOUT)
+}
+
+function refresh() {
+    if (restartTimer) {
+        clearTimeout(restartTimer)
+        restartTimer = makeTimer()
+    }
+}
 
 async function init() {
     CUR_CYCLE++
@@ -52,6 +69,7 @@ async function init() {
                 let follow = board[0]
                 let view = board[1]
                 let id = Number(page.url().split('/').pop())
+                refresh()
                 await utils.output({
                     type: 'question',
                     title,
@@ -79,6 +97,7 @@ async function init() {
         await page.screenshot({path: path.join(resourcePath, 'after_login.png')})
     }
     console.log('初始化成功');
+    restartTimer =  makeTimer()
     await loop(page, CUR_CYCLE)
 }
 
@@ -93,6 +112,7 @@ async function loop(mainPage, cycle) {
     } else {
         await loopFn(mainPage, cycle).catch(async e => {
             console.log(`loop发生promise错误，尝试第${RETRY_COUNT++}次重连`);
+            refresh()
             if (RETRY_COUNT > RETRY_TIME) {
                 console.log('超过最大重连数' + RETRY_TIME, '，重启应用');
                 utils.restart()
